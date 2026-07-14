@@ -1,0 +1,92 @@
+/**:
+  ros__parameters:
+    use_sim_time: false
+
+    model_path: ""
+    image_topic: "/zed/zed_node/rgb/color/rect/image"
+    pointcloud_topic: "/zed/zed_node/point_cloud/cloud_registered"
+    camera_info_topic: "/zed/zed_node/rgb/color/rect/camera_info"
+
+    pose_array_topic: "/suction_poses"
+    detection_topic: "/suction_detections"
+    marker_topic: "/suction_markers"
+    overlay_topic: "/suction_debug/overlay"
+    masked_cloud_topic: "/suction_debug/masked_cloud"
+    heatmap_overlay_topic: "/suction_debug/heatmap_overlay"
+    cluster_overlay_topic: "/suction_debug/cluster_overlay"
+    visualization_grid_topic: "/suction_debug/visualization_grid"
+    cluster_cloud_topic: "/suction_debug/cluster_cloud"
+
+    conf: 0.25
+    iou: 0.70
+    imgsz: 640
+    max_det: 50
+    device: ""
+    classes: ""
+    retina_masks: true
+    verbose: false
+
+    sync_queue_size: 5
+    sync_slop_sec: 0.20
+    input_qos_reliability: "best_effort"
+    process_every_n_frames: 1
+    target_fps: 0.0
+    log_timing: true
+
+    min_depth_m: 0.05
+    max_depth_m: 2.5
+    depth_axis: "x"
+    min_mask_area_px: 10
+    mask_downsample_min_coverage: 0.01
+    cloud_mask_dilate_px: 0
+    min_valid_points: 10
+    downsample_scale: 1
+    knn: 224
+    std_window: 8
+    dynamic_std_window: true
+    std_window_min: 5
+    std_window_max: 41
+    std_window_mask_ratio: 0.5  # 目标窗口大小比例, 决定动态 std_window 想取多大
+    std_window_max_mask_fraction: 0.23  # 上限保护比例, 限制窗口最大不能超过 mask 短边的多少
+    heatmap_threshold: 0.65
+    min_cluster_area_px: 40
+    min_pose_score: 0.50
+    fallback_to_best_heatmap: false
+    fallback_min_heatmap_score: 0.05
+    max_objects: 20
+    multi_pose_per_mask: false
+    max_poses_per_mask: 3
+    plane_merge_angle_deg: 10.0
+    plane_merge_distance_m: 0.02
+
+    suction_width_mm: 10.0
+    suction_height_mm: 10.0
+    fallback_patch_width_px: 10
+    fallback_patch_height_px: 10
+    weight_heatmap: 0.6
+    weight_distance: 0.4
+
+    normal_orientation: [-1.0, 0.0, 0.0]
+    invert_normal_for_pose: false
+    pose_reference_axis: [0.0, 1.0, 0.0]
+    use_pca_pose_orientation: true
+    pose_orientation_method: "cluster_obb"
+    pose_obb_min_aspect_ratio: 1.05
+    pose_pca_patch_scale: 2.0
+    pose_pca_min_points: 20
+    pose_pca_min_axis_ratio: 1.05
+    pose_axis_marker_length_m: 0.08
+    pose_footprint_thickness_m: 0.003
+
+    publish_pose_array: true
+    publish_detections: true
+    publish_markers: true
+    publish_overlay: true
+    publish_heatmap_overlay: true
+    publish_cluster_overlay: true
+    publish_visualization_grid: false
+    publish_masked_cloud: true
+    publish_cluster_cloud: true
+    publish_tf: false
+    tf_child_prefix: "suction_object"
+    debug_cloud_max_points_per_object: 2500
