@@ -9,6 +9,11 @@ install(PROGRAMS
 )
 
 install(DIRECTORY
+  scripts/zed_suction_pose
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY
   config
   checkpoints
   launch
