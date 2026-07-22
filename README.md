@@ -40,6 +40,14 @@ The combined launch also starts a FastAPI server on port `4444`:
 curl http://aisys-jetson-4.local:4444/cv/ecommerce/items
 ```
 
+Open the live detection overlay in a browser at:
+
+```text
+http://aisys-jetson-4.local:4444/cv/ecommerce/items-vis
+```
+
+This endpoint streams `/suction_debug/overlay` as MJPEG.
+
 The response is an array ordered by confidence, so index `0` is the preferred
 pick. An empty detection result is returned as `[]`. Positions and extents are
 in meters; `rx`, `ry`, and `rz` are XYZ Euler angles in degrees. The surface

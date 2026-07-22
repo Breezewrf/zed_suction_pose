@@ -35,6 +35,7 @@ def generate_launch_description():
             DeclareLaunchArgument("http_api", default_value="true"),
             DeclareLaunchArgument("http_host", default_value="0.0.0.0"),
             DeclareLaunchArgument("http_port", default_value="4444"),
+            DeclareLaunchArgument("http_overlay_topic", default_value="/suction_debug/overlay"),
             DeclareLaunchArgument("config_file", default_value=default_config),
             DeclareLaunchArgument("model_path", default_value=_default_model_path()),
             IncludeLaunchDescription(
@@ -74,6 +75,7 @@ def generate_launch_description():
                     {
                         "http_host": LaunchConfiguration("http_host"),
                         "http_port": LaunchConfiguration("http_port"),
+                        "overlay_topic": LaunchConfiguration("http_overlay_topic"),
                     }
                 ],
                 condition=IfCondition(LaunchConfiguration("http_api")),

@@ -1,10 +1,21 @@
 """Conversion helpers for the ecommerce HTTP response."""
 
 import math
-from typing import Dict, Tuple
+from typing import Dict, Protocol, Tuple
+
+import cv2
+import numpy as np
 
 
 Quaternion = Tuple[float, float, float, float]
+
+
+class ImageMessage(Protocol):
+    encoding: str
+    height: int
+    width: int
+    step: int
+    data: bytes
 
 
 def _normalize_quaternion(quaternion: Quaternion) -> Quaternion:
@@ -45,6 +56,12 @@ def make_http_item(
     extent_x, extent_y, extent_z = (max(0.0, float(value)) for value in extents)
     quaternion = _normalize_quaternion(quaternion)
 
+    # For a clearly rectangular surface, the default cluster-OBB pose estimator
+    # already aligns local X with the longest edge. This is not a strict invariant:
+    # nearly square surfaces (below the configured aspect-ratio threshold), sparse
+    # or noisy point clouds, and orientation fallbacks may still produce Y > X.
+    # Rotate the frame together with the dimensions so the HTTP contract always
+    # keeps extent_x and the returned local X axis on the same, longest edge.
     if extent_y > extent_x:
         extent_x, extent_y = extent_y, extent_x
         half_turn = math.pi / 4.0
@@ -68,3 +85,43 @@ def make_http_item(
         "ry": ry,
         "rz": rz,
     }
+
+
+def image_message_to_bgr(message: ImageMessage) -> np.ndarray:
+    """Decode the common 8-bit ROS Image encodings without cv_bridge."""
+    encoding = message.encoding.lower()
+    channels_by_encoding = {
+        "bgr8": 3,
+        "rgb8": 3,
+        "bgra8": 4,
+        "rgba8": 4,
+        "mono8": 1,
+    }
+    channels = channels_by_encoding.get(encoding)
+    if channels is None:
+        raise ValueError(f"unsupported image encoding: {message.encoding}")
+
+    height = int(message.height)
+    width = int(message.width)
+    step = int(message.step)
+    row_size = width * channels
+    if height <= 0 or width <= 0 or step < row_size:
+        raise ValueError("invalid image dimensions or row step")
+
+    raw = np.frombuffer(message.data, dtype=np.uint8)
+    required_size = height * step
+    if raw.size < required_size:
+        raise ValueError("image data is shorter than height * step")
+    rows = raw[:required_size].reshape(height, step)[:, :row_size]
+
+    if channels == 1:
+        return cv2.cvtColor(rows.reshape(height, width), cv2.COLOR_GRAY2BGR)
+
+    image = rows.reshape(height, width, channels)
+    if encoding == "rgb8":
+        return cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    if encoding == "bgra8":
+        return cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+    if encoding == "rgba8":
+        return cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
+    return np.ascontiguousarray(image)
