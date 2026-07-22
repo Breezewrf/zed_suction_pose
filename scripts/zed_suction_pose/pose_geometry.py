@@ -58,14 +58,17 @@ class PoseGeometryMixin:
         normal_map: np.ndarray,
         valid_idx: np.ndarray,
     ) -> Optional[SuctionPose]:
-        object_valid = candidate.get("cluster_valid", instance.mask & valid_idx)
-        points = xyz_img[object_valid]
+        # Prefer the candidate plane/cluster over the full YOLO object mask.
+        # This makes Detection3D.bbox.size describe the suction plane footprint,
+        # not the entire segmented object.
+        candidate_valid = candidate.get("cluster_valid", instance.mask & valid_idx)
+        points = xyz_img[candidate_valid]
         finite = np.isfinite(points).all(axis=1)
         points = points[finite]
         if points.shape[0] < self.min_valid_points:
             return None
 
-        pose_frame = self._estimate_candidate_pose_frame(xyz_img, object_valid, candidate)
+        pose_frame = self._estimate_candidate_pose_frame(xyz_img, candidate_valid, candidate)
         if pose_frame is None:
             normal = candidate["normal"].astype(np.float64)
             normal_norm = np.linalg.norm(normal)
@@ -296,6 +299,9 @@ class PoseGeometryMixin:
         if points.shape[0] == 0:
             return np.zeros(3, dtype=np.float64)
         rotation = Rotation.from_quat(orientation_xyzw).as_matrix()
+        # Rotation columns are the suction local X/Y/Z axes in the cloud frame.
+        # Dotting points with these axes gives the extents in suction-frame
+        # coordinates. Translation is irrelevant for min/max range.
         local = points.astype(np.float64) @ rotation
         return np.maximum(np.max(local, axis=0) - np.min(local, axis=0), 0.0).astype(np.float64)
 
@@ -370,4 +376,3 @@ class PoseGeometryMixin:
             rotation = np.column_stack((x_axis, y_axis, z_axis))
 
         return Rotation.from_matrix(rotation).as_quat()
-

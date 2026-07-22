@@ -33,3 +33,15 @@ source /home/breeze/Desktop/workplace/ultralytics/.venv/bin/activate
 source install/local_setup.bash
 ros2 launch zed_suction_pose zed_suction_with_camera.launch.py camera_model:=zed2i
 ```
+
+The combined launch also starts a FastAPI server on port `4444`:
+
+```bash
+curl http://aisys-jetson-4.local:4444/cv/ecommerce/items
+```
+
+The response is an array ordered by confidence, so index `0` is the preferred
+pick. An empty detection result is returned as `[]`. Positions and extents are
+in meters; `rx`, `ry`, and `rz` are XYZ Euler angles in degrees. The surface
+length is always `extent_x`, the width is `extent_y`, and the pose local Z axis
+is the surface approach direction.
