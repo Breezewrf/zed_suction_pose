@@ -16,7 +16,11 @@ from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPo
 from sensor_msgs.msg import Image
 from vision_msgs.msg import Detection3DArray
 
-from zed_suction_pose.http_conversion import image_message_to_bgr, make_http_item
+from zed_suction_pose.http_conversion import (
+    draw_items_panel,
+    image_message_to_bgr,
+    make_http_item,
+)
 
 
 class EcommerceItem(BaseModel):
@@ -101,6 +105,7 @@ class SuctionHttpNode(Node):
     def _overlay_callback(self, message: Image) -> None:
         try:
             image = image_message_to_bgr(message)
+            image = draw_items_panel(image, self.current_items())
             success, encoded = cv2.imencode(
                 ".jpg",
                 image,

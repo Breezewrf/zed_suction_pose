@@ -49,6 +49,8 @@ http://aisys-jetson-4.local:4444/cv/ecommerce/items-vis
 This endpoint streams `/suction_debug/overlay` as MJPEG.
 Only clusters selected as final suction poses are overlaid. Their `ID N` labels
 correspond directly to element `N` in the `/cv/ecommerce/items` response.
+The current `/items` values are also rendered in a dynamically sized panel that
+is constrained to the top-left half of the visualization.
 
 The response is an array ordered by confidence, so index `0` is the preferred
 pick. An empty detection result is returned as `[]`. Positions and extents are

@@ -1,10 +1,12 @@
 """Conversion helpers for the ecommerce HTTP response."""
 
 import math
-from typing import Dict, Protocol, Tuple
+from typing import Dict, List, Protocol, Tuple
 
 import cv2
 import numpy as np
+
+from .constants import ITEM_COLORS_BGR
 
 
 Quaternion = Tuple[float, float, float, float]
@@ -125,3 +127,87 @@ def image_message_to_bgr(message: ImageMessage) -> np.ndarray:
     if encoding == "rgba8":
         return cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
     return np.ascontiguousarray(image)
+
+
+def draw_items_panel(image: np.ndarray, items: List[Dict[str, float]]) -> np.ndarray:
+    """Draw the /items payload within the image's top-left quadrant."""
+    output = image.copy()
+    height, width = output.shape[:2]
+    if height <= 0 or width <= 1:
+        return output
+
+    lines = [(f"items: {len(items)}", (255, 255, 255))]
+    for index, item in enumerate(items):
+        color = ITEM_COLORS_BGR[index % len(ITEM_COLORS_BGR)]
+        lines.extend(
+            [
+                (
+                    f"[{index}] extent_x={item['extent_x']:.4f} "
+                    f"extent_y={item['extent_y']:.4f} extent_z={item['extent_z']:.4f}",
+                    color,
+                ),
+                (
+                    f"    x={item['x']:.4f} y={item['y']:.4f} z={item['z']:.4f}",
+                    color,
+                ),
+                (
+                    f"    rx={item['rx']:.2f} ry={item['ry']:.2f} rz={item['rz']:.2f}",
+                    color,
+                ),
+            ]
+        )
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    thickness = 1
+    margin = max(4, min(12, width // 100, height // 100))
+    panel_width = max(1, width // 2)
+    available_width = max(1, panel_width - 2 * margin)
+    available_height = max(1, height - 2 * margin)
+
+    base_sizes = [cv2.getTextSize(text, font, 1.0, thickness)[0] for text, _ in lines]
+    max_base_width = max(size[0] for size in base_sizes)
+    max_base_height = max(size[1] for size in base_sizes)
+    width_scale = available_width / max(1.0, float(max_base_width))
+    height_scale = available_height / max(
+        1.0,
+        float(len(lines) * (max_base_height + 6)),
+    )
+    font_scale = max(0.01, min(0.52, width_scale, height_scale))
+
+    line_height = max(1, int(math.floor((max_base_height + 6) * font_scale)))
+    panel_height = min(height, 2 * margin + line_height * len(lines))
+    panel_region = output[:panel_height, :panel_width]
+    black = np.zeros_like(panel_region)
+    output[:panel_height, :panel_width] = cv2.addWeighted(
+        panel_region,
+        0.35,
+        black,
+        0.65,
+        0.0,
+    )
+
+    baseline_y = margin + max(1, int(math.ceil(max_base_height * font_scale)))
+    for line_index, (text, color) in enumerate(lines):
+        y = min(panel_height - 1, baseline_y + line_index * line_height)
+        cv2.putText(
+            output,
+            text,
+            (margin, y),
+            font,
+            font_scale,
+            (0, 0, 0),
+            3,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            output,
+            text,
+            (margin, y),
+            font,
+            font_scale,
+            color,
+            thickness,
+            cv2.LINE_AA,
+        )
+
+    return output
