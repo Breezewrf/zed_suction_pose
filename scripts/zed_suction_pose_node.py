@@ -416,7 +416,13 @@ class ZedSuctionPoseNode(
 
             # Debug images are intentionally outside the core publish timing bucket.
             if self.overlay_pub:
-                overlay = self._make_overlay(result, bgr_image, poses, xyz_img.shape[:2])
+                overlay = self._make_overlay(
+                    result,
+                    bgr_image,
+                    poses,
+                    cluster_candidates,
+                    xyz_img.shape[:2],
+                )
                 self._publish_bgr_image(self.overlay_pub, overlay, image_msg.header)
             if self.heatmap_overlay_pub:
                 heatmap_overlay = self._make_heatmap_overlay(bgr_image, heatmaps, xyz_img.shape[:2])

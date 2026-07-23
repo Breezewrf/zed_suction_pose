@@ -68,7 +68,7 @@ class SuctionHttpNode(Node):
         self.get_logger().info(f"HTTP visualization topic: {overlay_topic}")
 
     def _detections_callback(self, message: Detection3DArray) -> None:
-        ranked_items: List[Tuple[float, Dict[str, float]]] = []
+        items: List[Dict[str, float]] = []
         for detection in message.detections:
             pose = detection.bbox.center
             size = detection.bbox.size
@@ -87,15 +87,12 @@ class SuctionHttpNode(Node):
                 self.get_logger().warning(f"Ignoring invalid suction detection: {exc}")
                 continue
 
-            score = max(
-                (float(result.hypothesis.score) for result in detection.results),
-                default=0.0,
-            )
-            ranked_items.append((score, item))
+            items.append(item)
 
-        ranked_items.sort(key=lambda entry: entry[0], reverse=True)
+        # Detection order is assigned by the detector and is also drawn as the
+        # overlay ID. Preserve it exactly so ID N always maps to /items[N].
         with self._items_lock:
-            self._items = tuple(item for _, item in ranked_items)
+            self._items = tuple(items)
 
     def current_items(self) -> List[Dict[str, float]]:
         with self._items_lock:
