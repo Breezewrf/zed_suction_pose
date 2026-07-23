@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 import cv2
 import numpy as np
 
-from .constants import CLUSTER_COLORS_BGR, INSTANCE_COLORS_BGR
+from .constants import CLUSTER_COLORS_BGR, INSTANCE_COLORS_BGR, ITEM_COLORS_BGR
 from .models import InstanceMask, SuctionPose
 
 
@@ -273,7 +273,7 @@ class VisualizationMixin:
         image_shape = bgr_image.shape[:2]
 
         for item_index, pose in enumerate(poses):
-            color = CLUSTER_COLORS_BGR[item_index % len(CLUSTER_COLORS_BGR)]
+            color = ITEM_COLORS_BGR[item_index % len(ITEM_COLORS_BGR)]
             candidate = candidates_by_pose.get((pose.object_id, pose.cluster_id))
             if candidate is not None:
                 cluster_mask = self._resize_mask(candidate["cluster_valid"], image_shape)
@@ -293,6 +293,16 @@ class VisualizationMixin:
             cv2.circle(overlay, (x, y), 6, color, -1)
             cv2.circle(overlay, (x, y), 9, (255, 255, 255), 2)
             label = f"ID {item_index} score={pose.suction_score * pose.yolo_score:.2f}"
+            cv2.putText(
+                overlay,
+                label,
+                (x + 8, max(16, y - 8)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                (0, 0, 0),
+                4,
+                cv2.LINE_AA,
+            )
             cv2.putText(
                 overlay,
                 label,
