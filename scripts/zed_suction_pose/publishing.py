@@ -5,7 +5,10 @@ from typing import List, Tuple
 
 import cv2
 import numpy as np
+import tf2_ros
 from geometry_msgs.msg import Point, Pose, TransformStamped
+from rclpy.duration import Duration
+from rclpy.time import Time
 from scipy.spatial.transform import Rotation
 from sensor_msgs.msg import Image, PointCloud2, PointField
 from std_msgs.msg import ColorRGBA, Header
@@ -27,7 +30,9 @@ class PublishingMixin:
         cluster_points: List[Tuple[np.ndarray, Tuple[int, int, int]]],
     ) -> None:
         if self.pose_pub:
-            self.pose_pub.publish(self._make_pose_array(header, poses))
+            pose_array = self._make_pose_array(header, poses)
+            if pose_array is not None:
+                self.pose_pub.publish(pose_array)
         if self.detection_pub:
             self.detection_pub.publish(self._make_detection_array(header, poses))
         if self.marker_pub:
@@ -54,9 +59,66 @@ class PublishingMixin:
     def _make_pose_array(self, header: Header, poses: List[SuctionPose]):
         from geometry_msgs.msg import PoseArray
 
+        output_header = Header()
+        output_header.stamp = header.stamp
+        output_header.frame_id = self.pose_array_frame
+
         msg = PoseArray()
-        msg.header = header
-        msg.poses = [self._pose_msg(pose) for pose in poses]
+        msg.header = output_header
+
+        if header.frame_id == self.pose_array_frame:
+            msg.poses = [self._pose_msg(pose) for pose in poses]
+            return msg
+
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                self.pose_array_frame,
+                header.frame_id,
+                Time.from_msg(header.stamp),
+                timeout=Duration(seconds=0.1),
+            )
+        except tf2_ros.TransformException as exc:
+            now = time.monotonic()
+            if now - self.last_pose_tf_warn_time > 2.0:
+                self.get_logger().warn(
+                    f"Cannot transform /suction_poses from '{header.frame_id}' "
+                    f"to '{self.pose_array_frame}': {exc}"
+                )
+                self.last_pose_tf_warn_time = now
+            return None
+
+        translation = np.array(
+            [
+                transform.transform.translation.x,
+                transform.transform.translation.y,
+                transform.transform.translation.z,
+            ],
+            dtype=np.float64,
+        )
+        transform_rotation = Rotation.from_quat(
+            [
+                transform.transform.rotation.x,
+                transform.transform.rotation.y,
+                transform.transform.rotation.z,
+                transform.transform.rotation.w,
+            ]
+        )
+
+        msg.poses = []
+        for pose in poses:
+            transformed = self._pose_msg(pose)
+            position = transform_rotation.apply(pose.position) + translation
+            orientation = (
+                transform_rotation * Rotation.from_quat(pose.orientation_xyzw)
+            ).as_quat()
+            transformed.position.x = float(position[0])
+            transformed.position.y = float(position[1])
+            transformed.position.z = float(position[2])
+            transformed.orientation.x = float(orientation[0])
+            transformed.orientation.y = float(orientation[1])
+            transformed.orientation.z = float(orientation[2])
+            transformed.orientation.w = float(orientation[3])
+            msg.poses.append(transformed)
         return msg
 
     def _make_detection_array(self, header: Header, poses: List[SuctionPose]) -> Detection3DArray:
@@ -250,4 +312,3 @@ class PublishingMixin:
         if now - self.last_error_log_time > 2.0:
             self.get_logger().error(f"Failed to process synced ZED data: {type(exc).__name__}: {exc}")
             self.last_error_log_time = now
-

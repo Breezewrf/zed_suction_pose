@@ -8,6 +8,7 @@
     camera_info_topic: "/zed/zed_node/rgb/color/rect/camera_info"
 
     pose_array_topic: "/suction_poses"
+    pose_array_frame: "zed_left_camera_frame_optical"
     detection_topic: "/suction_detections"
     marker_topic: "/suction_markers"
     overlay_topic: "/suction_debug/overlay"

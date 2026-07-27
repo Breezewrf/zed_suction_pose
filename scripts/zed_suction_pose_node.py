@@ -61,6 +61,7 @@ class ZedSuctionPoseNode(
         self.frame_count = 0
         self.last_process_time = 0.0
         self.last_error_log_time = 0.0
+        self.last_pose_tf_warn_time = 0.0
         self.last_camera_info_warn_time = 0.0
         self.last_stats_log_time = time.monotonic()
         self.processed_frame_count = 0
@@ -121,6 +122,8 @@ class ZedSuctionPoseNode(
             else None
         )
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self) if self.publish_tf else None
+        self.tf_buffer = tf2_ros.Buffer(node=self)
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         sub_qos = self._make_input_qos()
         self.camera_info_sub = self.create_subscription(
@@ -160,6 +163,7 @@ class ZedSuctionPoseNode(
         self.declare_parameter("pointcloud_topic", "/zed/zed_node/point_cloud/cloud_registered")
         self.declare_parameter("camera_info_topic", "/zed/zed_node/rgb/color/rect/camera_info")
         self.declare_parameter("pose_array_topic", "/suction_poses")
+        self.declare_parameter("pose_array_frame", "zed_left_camera_frame_optical")
         self.declare_parameter("detection_topic", "/suction_detections")
         self.declare_parameter("marker_topic", "/suction_markers")
         self.declare_parameter("overlay_topic", "/suction_debug/overlay")
@@ -243,6 +247,7 @@ class ZedSuctionPoseNode(
         self.pointcloud_topic = self.get_parameter("pointcloud_topic").value
         self.camera_info_topic = self.get_parameter("camera_info_topic").value
         self.pose_array_topic = self.get_parameter("pose_array_topic").value
+        self.pose_array_frame = self.get_parameter("pose_array_frame").value
         self.detection_topic = self.get_parameter("detection_topic").value
         self.marker_topic = self.get_parameter("marker_topic").value
         self.overlay_topic = self.get_parameter("overlay_topic").value
