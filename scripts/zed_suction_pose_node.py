@@ -407,11 +407,17 @@ class ZedSuctionPoseNode(
             )
             after_suction = time.monotonic()
 
-            header = Header()
-            header.stamp = cloud_msg.header.stamp
-            header.frame_id = cloud_msg.header.frame_id
+            cloud_header = Header()
+            cloud_header.stamp = cloud_msg.header.stamp
+            cloud_header.frame_id = cloud_msg.header.frame_id
 
-            self._publish_results(header, poses, debug_points, cluster_points)
+            pose_header = Header()
+            pose_header.stamp = cloud_msg.header.stamp
+            pose_header.frame_id = self._pose_frame_id(cloud_msg.header.frame_id)
+
+            optical_poses = self._poses_in_optical_frame(poses)
+
+            self._publish_results(pose_header, cloud_header, optical_poses, debug_points, cluster_points)
             after_core_publish = time.monotonic()
 
             # Debug images are intentionally outside the core publish timing bucket.
