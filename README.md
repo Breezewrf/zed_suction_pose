@@ -18,9 +18,10 @@ Default outputs:
 - `/suction_debug/overlay` (`sensor_msgs/Image`)
 - `/suction_debug/masked_cloud` (`sensor_msgs/PointCloud2`)
 
-`/suction_poses` is transformed through TF at the point-cloud timestamp and
-published in `zed_left_camera_frame_optical` by default. Set the
-`pose_array_frame` parameter to select a different output frame.
+`/suction_poses` and `/suction_detections` are transformed through TF at the
+point-cloud timestamp and published in `zed_left_camera_frame_optical` by
+default. Set the `pose_array_frame` parameter to select a different output
+frame for both topics.
 
 Run with an existing ZED node:
 

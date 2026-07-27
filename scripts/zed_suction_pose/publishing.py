@@ -29,12 +29,18 @@ class PublishingMixin:
         debug_points: List[Tuple[np.ndarray, Tuple[int, int, int]]],
         cluster_points: List[Tuple[np.ndarray, Tuple[int, int, int]]],
     ) -> None:
-        if self.pose_pub:
-            pose_array = self._make_pose_array(header, poses)
-            if pose_array is not None:
-                self.pose_pub.publish(pose_array)
-        if self.detection_pub:
-            self.detection_pub.publish(self._make_detection_array(header, poses))
+        transformed_output = None
+        if self.pose_pub or self.detection_pub:
+            transformed_output = self._transform_pose_messages(header, poses)
+
+        if transformed_output is not None:
+            output_header, transformed_poses = transformed_output
+            if self.pose_pub:
+                self.pose_pub.publish(self._make_pose_array(output_header, transformed_poses))
+            if self.detection_pub:
+                self.detection_pub.publish(
+                    self._make_detection_array(output_header, poses, transformed_poses)
+                )
         if self.marker_pub:
             self.marker_pub.publish(self._make_marker_array(header, poses))
         if self.masked_cloud_pub:
@@ -56,19 +62,17 @@ class PublishingMixin:
         msg.orientation.w = float(pose.orientation_xyzw[3])
         return msg
 
-    def _make_pose_array(self, header: Header, poses: List[SuctionPose]):
-        from geometry_msgs.msg import PoseArray
-
+    def _transform_pose_messages(
+        self,
+        header: Header,
+        poses: List[SuctionPose],
+    ) -> Tuple[Header, List[Pose]] | None:
         output_header = Header()
         output_header.stamp = header.stamp
         output_header.frame_id = self.pose_array_frame
 
-        msg = PoseArray()
-        msg.header = output_header
-
         if header.frame_id == self.pose_array_frame:
-            msg.poses = [self._pose_msg(pose) for pose in poses]
-            return msg
+            return output_header, [self._pose_msg(pose) for pose in poses]
 
         try:
             transform = self.tf_buffer.lookup_transform(
@@ -81,7 +85,7 @@ class PublishingMixin:
             now = time.monotonic()
             if now - self.last_pose_tf_warn_time > 2.0:
                 self.get_logger().warn(
-                    f"Cannot transform /suction_poses from '{header.frame_id}' "
+                    f"Cannot transform suction poses from '{header.frame_id}' "
                     f"to '{self.pose_array_frame}': {exc}"
                 )
                 self.last_pose_tf_warn_time = now
@@ -104,7 +108,7 @@ class PublishingMixin:
             ]
         )
 
-        msg.poses = []
+        transformed_poses = []
         for pose in poses:
             transformed = self._pose_msg(pose)
             position = transform_rotation.apply(pose.position) + translation
@@ -118,13 +122,27 @@ class PublishingMixin:
             transformed.orientation.y = float(orientation[1])
             transformed.orientation.z = float(orientation[2])
             transformed.orientation.w = float(orientation[3])
-            msg.poses.append(transformed)
+            transformed_poses.append(transformed)
+        return output_header, transformed_poses
+
+    @staticmethod
+    def _make_pose_array(header: Header, poses: List[Pose]):
+        from geometry_msgs.msg import PoseArray
+
+        msg = PoseArray()
+        msg.header = header
+        msg.poses = poses
         return msg
 
-    def _make_detection_array(self, header: Header, poses: List[SuctionPose]) -> Detection3DArray:
+    def _make_detection_array(
+        self,
+        header: Header,
+        poses: List[SuctionPose],
+        transformed_poses: List[Pose],
+    ) -> Detection3DArray:
         array = Detection3DArray()
         array.header = header
-        for pose in poses:
+        for pose, transformed_pose in zip(poses, transformed_poses):
             det = Detection3D()
             det.header = header
             det.id = f"{pose.object_id}:{pose.cluster_id}"
@@ -132,10 +150,10 @@ class PublishingMixin:
             hyp = ObjectHypothesisWithPose()
             hyp.hypothesis.class_id = pose.class_name
             hyp.hypothesis.score = float(pose.suction_score * pose.yolo_score)
-            hyp.pose.pose = self._pose_msg(pose)
+            hyp.pose.pose = transformed_pose
             det.results.append(hyp)
 
-            det.bbox.center = self._pose_msg(pose)
+            det.bbox.center = transformed_pose
             size = np.maximum(pose.bbox_size, 0.0)
             det.bbox.size.x = float(size[0])
             det.bbox.size.y = float(size[1])
