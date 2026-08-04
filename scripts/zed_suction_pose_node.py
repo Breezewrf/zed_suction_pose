@@ -355,7 +355,7 @@ class ZedSuctionPoseNode(
         )
         return QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
-            depth=1,
+            depth=5,
             reliability=reliability,
             durability=DurabilityPolicy.VOLATILE,
         )

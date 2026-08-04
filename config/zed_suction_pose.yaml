@@ -28,7 +28,7 @@
 
     sync_queue_size: 5
     sync_slop_sec: 0.20
-    input_qos_reliability: "best_effort"
+    input_qos_reliability: "reliable"
     process_every_n_frames: 1
     target_fps: 0.0
     log_timing: true
@@ -47,7 +47,7 @@
     std_window_min: 5
     std_window_max: 41
     std_window_mask_ratio: 0.5  # 目标窗口大小比例, 决定动态 std_window 想取多大
-    std_window_max_mask_fraction: 0.23  # 上限保护比例, 限制窗口最大不能超过 mask 短边的多少
+    std_window_max_mask_fraction: 0.4  # 上限保护比例, 限制窗口最大不能超过 mask 短边的多少
     heatmap_threshold: 0.65
     min_cluster_area_px: 40
     min_pose_score: 0.50
@@ -78,14 +78,14 @@
     pose_axis_marker_length_m: 0.08
     pose_footprint_thickness_m: 0.003
 
-    publish_pose_array: true
+    publish_pose_array: false
     publish_detections: true
     publish_markers: true
     publish_overlay: true
-    publish_heatmap_overlay: true
-    publish_cluster_overlay: true
+    publish_heatmap_overlay: false
+    publish_cluster_overlay: false
     publish_visualization_grid: false
-    publish_masked_cloud: true
+    publish_masked_cloud: false
     publish_cluster_cloud: true
     publish_tf: false
     tf_child_prefix: "suction_object"
