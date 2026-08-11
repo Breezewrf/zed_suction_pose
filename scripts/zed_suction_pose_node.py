@@ -355,7 +355,7 @@ class ZedSuctionPoseNode(
         )
         return QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
-            depth=1,
+            depth=5,
             reliability=reliability,
             durability=DurabilityPolicy.VOLATILE,
         )
@@ -407,16 +407,28 @@ class ZedSuctionPoseNode(
             )
             after_suction = time.monotonic()
 
-            header = Header()
-            header.stamp = cloud_msg.header.stamp
-            header.frame_id = cloud_msg.header.frame_id
+            cloud_header = Header()
+            cloud_header.stamp = cloud_msg.header.stamp
+            cloud_header.frame_id = cloud_msg.header.frame_id
 
-            self._publish_results(header, poses, debug_points, cluster_points)
+            pose_header = Header()
+            pose_header.stamp = cloud_msg.header.stamp
+            pose_header.frame_id = self._pose_frame_id(cloud_msg.header.frame_id)
+
+            optical_poses = self._poses_in_optical_frame(poses)
+
+            self._publish_results(pose_header, cloud_header, optical_poses, debug_points, cluster_points)
             after_core_publish = time.monotonic()
 
             # Debug images are intentionally outside the core publish timing bucket.
             if self.overlay_pub:
-                overlay = self._make_overlay(result, bgr_image, poses, xyz_img.shape[:2])
+                overlay = self._make_overlay(
+                    result,
+                    bgr_image,
+                    poses,
+                    cluster_candidates,
+                    xyz_img.shape[:2],
+                )
                 self._publish_bgr_image(self.overlay_pub, overlay, image_msg.header)
             if self.heatmap_overlay_pub:
                 heatmap_overlay = self._make_heatmap_overlay(bgr_image, heatmaps, xyz_img.shape[:2])

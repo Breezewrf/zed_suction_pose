@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 import cv2
 import numpy as np
 
-from .constants import CLUSTER_COLORS_BGR, INSTANCE_COLORS_BGR
+from .constants import CLUSTER_COLORS_BGR, INSTANCE_COLORS_BGR, ITEM_COLORS_BGR
 from .models import InstanceMask, SuctionPose
 
 
@@ -188,7 +188,13 @@ class VisualizationMixin:
         mask_vis = self._make_mask_visualization(bgr_image, instances, cloud_shape)
         depth_vis = self._make_depth_visualization(xyz_img, bgr_image.shape[:2])
         cluster_vis = self._make_cluster_overlay(bgr_image, cluster_candidates, cloud_shape)
-        tag_loc = self._make_overlay(result, bgr_image, poses, cloud_shape)
+        tag_loc = self._make_overlay(
+            result,
+            bgr_image,
+            poses,
+            cluster_candidates,
+            cloud_shape,
+        )
 
         panels = [
             self._label_debug_image(result_img, "YOLO Detection"),
@@ -246,6 +252,7 @@ class VisualizationMixin:
         result,
         bgr_image: np.ndarray,
         poses: List[SuctionPose],
+        cluster_candidates: List[Dict],
         cloud_shape: Tuple[int, int],
     ) -> np.ndarray:
         red_mask_overlay = self._apply_red_segmentation_masks(result, bgr_image)
@@ -259,12 +266,43 @@ class VisualizationMixin:
         )
         overlay = np.ascontiguousarray(overlay)
 
-        for pose in poses:
+        candidates_by_pose = {
+            (int(candidate["instance_index"]), int(candidate["cluster_id"])): candidate
+            for candidate in cluster_candidates
+        }
+        image_shape = bgr_image.shape[:2]
+
+        for item_index, pose in enumerate(poses):
+            color = ITEM_COLORS_BGR[item_index % len(ITEM_COLORS_BGR)]
+            candidate = candidates_by_pose.get((pose.object_id, pose.cluster_id))
+            if candidate is not None:
+                cluster_mask = self._resize_mask(candidate["cluster_valid"], image_shape)
+                color_layer = np.empty_like(overlay)
+                color_layer[:] = color
+                blended = cv2.addWeighted(overlay, 0.65, color_layer, 0.35, 0.0)
+                overlay[cluster_mask] = blended[cluster_mask]
+
+                contours, _ = cv2.findContours(
+                    cluster_mask.astype(np.uint8),
+                    cv2.RETR_EXTERNAL,
+                    cv2.CHAIN_APPROX_SIMPLE,
+                )
+                cv2.drawContours(overlay, contours, -1, color, 2)
+
             x, y = self._scale_point(pose.center_px, cloud_shape, bgr_image.shape[:2])
-            color = INSTANCE_COLORS_BGR[pose.object_id % len(INSTANCE_COLORS_BGR)]
             cv2.circle(overlay, (x, y), 6, color, -1)
             cv2.circle(overlay, (x, y), 9, (255, 255, 255), 2)
-            label = f"{pose.object_id}:{pose.cluster_id}:{pose.suction_score:.2f}"
+            label = f"ID {item_index} score={pose.suction_score * pose.yolo_score:.2f}"
+            cv2.putText(
+                overlay,
+                label,
+                (x + 8, max(16, y - 8)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                (0, 0, 0),
+                4,
+                cv2.LINE_AA,
+            )
             cv2.putText(
                 overlay,
                 label,
@@ -276,4 +314,3 @@ class VisualizationMixin:
                 cv2.LINE_AA,
             )
         return overlay
-

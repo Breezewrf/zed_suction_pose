@@ -85,6 +85,9 @@ class SuctionProcessingMixin:
                 if pose is not None:
                     poses.append(pose)
 
+        # This order is the public /items order. Publishing and debug rendering
+        # must both preserve it so overlay ID N always identifies /items[N].
+        poses.sort(key=lambda pose: pose.suction_score * pose.yolo_score, reverse=True)
         return poses, debug_points, cluster_points, heatmaps, cluster_candidates
 
     def _valid_mask_for_cloud(self, xyz_img: np.ndarray, mask: np.ndarray) -> np.ndarray:
@@ -382,4 +385,3 @@ class SuctionProcessingMixin:
         patch_w = int(np.clip(patch_w, 5, max_size))
         patch_h = int(np.clip(patch_h, 5, max_size))
         return patch_w, patch_h
-

@@ -5,6 +5,7 @@ find_package(ament_cmake REQUIRED)
 
 install(PROGRAMS
   scripts/zed_suction_pose_node.py
+  scripts/zed_suction_http_api.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

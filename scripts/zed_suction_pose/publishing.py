@@ -1,6 +1,7 @@
 """ROS message publishing and message builders."""
 
 import time
+from dataclasses import replace
 from typing import List, Tuple
 
 import cv2
@@ -19,25 +20,61 @@ from .models import SuctionPose
 class PublishingMixin:
     """Methods that build and publish ROS messages."""
 
+    _CAMERA_TO_OPTICAL_ROTATION = Rotation.from_matrix(
+        np.array(
+            [
+                [0.0, -1.0, 0.0],
+                [0.0, 0.0, -1.0],
+                [1.0, 0.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+    )
+
     def _publish_results(
         self,
-        header: Header,
+        pose_header: Header,
+        cloud_header: Header,
         poses: List[SuctionPose],
         debug_points: List[Tuple[np.ndarray, Tuple[int, int, int]]],
         cluster_points: List[Tuple[np.ndarray, Tuple[int, int, int]]],
     ) -> None:
         if self.pose_pub:
-            self.pose_pub.publish(self._make_pose_array(header, poses))
+            self.pose_pub.publish(self._make_pose_array(pose_header, poses))
         if self.detection_pub:
-            self.detection_pub.publish(self._make_detection_array(header, poses))
+            self.detection_pub.publish(self._make_detection_array(pose_header, poses))
         if self.marker_pub:
-            self.marker_pub.publish(self._make_marker_array(header, poses))
+            self.marker_pub.publish(self._make_marker_array(pose_header, poses))
         if self.masked_cloud_pub:
-            self.masked_cloud_pub.publish(self._make_debug_cloud(header, debug_points))
+            self.masked_cloud_pub.publish(self._make_debug_cloud(cloud_header, debug_points))
         if self.cluster_cloud_pub:
-            self.cluster_cloud_pub.publish(self._make_debug_cloud(header, cluster_points))
+            self.cluster_cloud_pub.publish(self._make_debug_cloud(cloud_header, cluster_points))
         if self.tf_broadcaster:
-            self._publish_transforms(header, poses)
+            self._publish_transforms(pose_header, poses)
+
+    @staticmethod
+    def _pose_frame_id(frame_id: str) -> str:
+        if frame_id.endswith("_optical"):
+            return frame_id
+        return f"{frame_id}_optical"
+
+    def _pose_in_optical_frame(self, pose: SuctionPose) -> SuctionPose:
+        rotation = self._CAMERA_TO_OPTICAL_ROTATION
+        position = rotation.apply(np.asarray(pose.position, dtype=np.float64))
+        normal = rotation.apply(np.asarray(pose.normal, dtype=np.float64))
+        orientation = (
+            rotation * Rotation.from_quat(np.asarray(pose.orientation_xyzw, dtype=np.float64))
+        ).as_quat()
+
+        return replace(
+            pose,
+            position=position,
+            normal=normal,
+            orientation_xyzw=orientation,
+        )
+
+    def _poses_in_optical_frame(self, poses: List[SuctionPose]) -> List[SuctionPose]:
+        return [self._pose_in_optical_frame(pose) for pose in poses]
 
     @staticmethod
     def _pose_msg(pose: SuctionPose) -> Pose:
