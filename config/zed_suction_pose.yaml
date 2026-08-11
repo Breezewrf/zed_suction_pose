@@ -42,13 +42,15 @@
     cloud_mask_dilate_px: 0
     min_valid_points: 10
     downsample_scale: 1
-    knn: 224
+    knn: 48  # 使法向估计保持局部性，减少顶面与侧面跨边界平滑
     std_window: 8
     dynamic_std_window: true
-    std_window_min: 5
-    std_window_max: 41
-    std_window_mask_ratio: 0.5  # 目标窗口大小比例, 决定动态 std_window 想取多大
-    std_window_max_mask_fraction: 0.23  # 上限保护比例, 限制窗口最大不能超过 mask 短边的多少
+    std_window_min: 3  # 保留小物体和细长区域的局部细节
+    std_window_max: 51  # 为大物体提供足够的法向统计范围
+    std_window_mask_ratio: 0.12  # 目标窗口为有效 mask 包围盒短边的约 12%
+    std_window_max_mask_fraction: 0.25  # 安全上限，避免窗口跨越细长或不规则物体边界
+    max_surface_tilt_deg: 25.0  # 仅保留法向与期望吸取方向夹角不超过 25 度的表面
+    cluster_opening_px: 3  # 切断顶面和侧面之间的细小弯曲连接带
     heatmap_threshold: 0.65
     min_cluster_area_px: 40
     min_pose_score: 0.50

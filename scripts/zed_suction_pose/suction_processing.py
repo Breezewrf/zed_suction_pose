@@ -197,7 +197,34 @@ class SuctionProcessingMixin:
         if int(np.count_nonzero(object_valid)) < self.min_valid_points:
             return []
 
-        heatmap_binary = ((heatmap >= self.heatmap_threshold) & object_valid).astype(np.uint8)
+        normal_norm = np.linalg.norm(normal_map, axis=2)
+        normal_alignment = np.zeros_like(normal_norm, dtype=np.float32)
+        normal_dot = np.abs(normal_map @ self.normal_orientation.astype(np.float32))
+        np.divide(
+            normal_dot,
+            np.maximum(normal_norm, 1e-9),
+            out=normal_alignment,
+            where=normal_norm > 1e-6,
+        )
+        surface_valid = object_valid & (
+            normal_alignment >= self.surface_normal_min_alignment
+        )
+
+        heatmap_binary = (
+            (heatmap >= self.heatmap_threshold) & surface_valid
+        ).astype(np.uint8)
+        if self.cluster_opening_px > 1:
+            kernel = cv2.getStructuringElement(
+                cv2.MORPH_ELLIPSE,
+                (self.cluster_opening_px, self.cluster_opening_px),
+            )
+            heatmap_binary = cv2.morphologyEx(
+                heatmap_binary,
+                cv2.MORPH_OPEN,
+                kernel,
+            )
+            heatmap_binary[~surface_valid] = 0
+
         num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(heatmap_binary, connectivity=8)
         if num_labels <= 1:
             return []
@@ -208,7 +235,7 @@ class SuctionProcessingMixin:
             if area < self.min_cluster_area_px:
                 continue
 
-            cluster_valid = (labels == label) & object_valid
+            cluster_valid = (labels == label) & surface_valid
             valid_depths = xyz_img[..., self.depth_axis_index][cluster_valid]
             valid_depths = valid_depths[np.isfinite(valid_depths)]
             if valid_depths.size == 0:
