@@ -197,6 +197,8 @@ class ZedSuctionPoseNode(
         self.declare_parameter("std_window_max", 41)
         self.declare_parameter("std_window_mask_ratio", 0.08)
         self.declare_parameter("std_window_max_mask_fraction", 0.33)
+        self.declare_parameter("max_surface_tilt_deg", 30.0)
+        self.declare_parameter("cluster_opening_px", 3)
         self.declare_parameter("heatmap_threshold", 0.60)
         self.declare_parameter("min_cluster_area_px", 80)
         self.declare_parameter("min_pose_score", 0.50)
@@ -287,6 +289,15 @@ class ZedSuctionPoseNode(
         self.std_window_max_mask_fraction = float(
             np.clip(float(self.get_parameter("std_window_max_mask_fraction").value), 0.05, 1.0)
         )
+        self.max_surface_tilt_deg = float(
+            np.clip(float(self.get_parameter("max_surface_tilt_deg").value), 0.0, 90.0)
+        )
+        self.surface_normal_min_alignment = float(
+            np.cos(np.deg2rad(self.max_surface_tilt_deg))
+        )
+        self.cluster_opening_px = max(0, int(self.get_parameter("cluster_opening_px").value))
+        if self.cluster_opening_px > 1 and self.cluster_opening_px % 2 == 0:
+            self.cluster_opening_px += 1
         self.heatmap_threshold = float(self.get_parameter("heatmap_threshold").value)
         self.min_cluster_area_px = int(self.get_parameter("min_cluster_area_px").value)
         self.min_pose_score = float(self.get_parameter("min_pose_score").value)
